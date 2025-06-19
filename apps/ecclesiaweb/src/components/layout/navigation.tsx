@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { MobileNav } from "./mobile-nav"
 import { 
   Calendar, 
   Home, 
@@ -19,26 +20,10 @@ import {
  * Each item has an icon, label, and href for routing
  */
 const navigationItems = [
-  {
-    name: "Dashboard",
-    href: "/",
-    icon: Home,
-  },
-  {
-    name: "Events",
-    href: "/events",
-    icon: Calendar,
-  },
-  {
-    name: "Onboarding",
-    href: "/onboarding",
-    icon: Users,
-  },
-  {
-    name: "Insights",
-    href: "/insights",
-    icon: BarChart3,
-  },
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Events", href: "/events", icon: Calendar },
+  { name: "Onboarding", href: "/onboarding", icon: Users },
+  { name: "Insights", href: "/insights", icon: BarChart3 },
 ]
 
 /**
@@ -64,7 +49,7 @@ export function Navigation() {
             </Link>
           </div>
 
-          {/* Main Navigation Links */}
+          {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-1">
             {navigationItems.map((item) => {
               const Icon = item.icon
@@ -104,7 +89,7 @@ export function Navigation() {
               <Settings className="h-5 w-5" />
             </Button>
 
-            {/* User Profile - We'll enhance this later */}
+            {/* User Profile - To be enhanced this later */}
             <div className="flex items-center space-x-2">
               <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center">
                 <span className="text-white text-sm font-medium">PJ</span>
@@ -117,10 +102,8 @@ export function Navigation() {
         </div>
       </div>
 
-      {/* Mobile Navigation - We'll add this later for responsive design */}
-      <div className="md:hidden">
-        {/* Mobile menu will go here */}
-      </div>
+      {/* Mobile Navigation */}
+      <MobileNav />
     </nav>
   )
 }
