@@ -1,0 +1,286 @@
+// Prisma Schema for Ecclesiaflow
+// This defines our database structure using Prisma ORM
+// Prisma generates type-safe database client automatically
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - represents church members, pastors, leaders
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(MEMBER)
+  avatar    String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  eventsCreated     Event[]              @relation("EventCreator")
+  groupMemberships  GroupMember[]
+  onboardingRecord  MemberOnboarding?
+  attendanceRecords AttendanceRecord[]
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+// Enum for user roles - defines permission levels
+enum UserRole {
+  ADMIN    // Full system access
+  PASTOR   // Church leadership access
+  LEADER   // Group/ministry leadership
+  MEMBER   // Basic member access
+  VOLUNTEER // Volunteer-specific access
+}
+
+// Event model - represents church events, services, meetings
+model Event {
+  id           String      @id @default(cuid())
+  title        String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  location     String?
+  maxAttendees Int?
+  status       EventStatus @default(DRAFT)
+  createdBy    String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // AI-generated content tracking
+  flyerGenerated    Boolean @default(false)
+  flyerUrl          String?
+  socialPostReady   Boolean @default(false)
+  socialPostContent String?
+  remindersSent     Boolean @default(false)
+
+  // Relationships
+  creator           User               @relation("EventCreator", fields: [createdBy], references: [id])
+  attendanceRecords AttendanceRecord[]
+  eventGroups       EventGroup[]       // Many-to-many with groups
+
+  @@map("events")
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+// Group model - represents ministries, teams, small groups
+model Group {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        GroupType
+  color       String    @default("#3b82f6") // Hex color for UI
+  leaderId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  members     GroupMember[]
+  eventGroups EventGroup[]
+
+  @@map("groups")
+}
+
+enum GroupType {
+  WORSHIP
+  USHERS
+  MEDIA
+  OUTREACH
+  YOUTH
+  CHILDREN
+  PRAYER
+  ADMIN
+}
+
+// Junction table for many-to-many relationship between users and groups
+model GroupMember {
+  id       String   @id @default(cuid())
+  userId   String
+  groupId  String
+  joinedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId]) // Prevent duplicate memberships
+  @@map("group_members")
+}
+
+// Junction table for many-to-many relationship between events and groups
+model EventGroup {
+  id      String @id @default(cuid())
+  eventId String
+  groupId String
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, groupId])
+  @@map("event_groups")
+}
+
+// Onboarding system - tracks new member progress
+model MemberOnboarding {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  progress          Int      @default(0) // 0-100 percentage
+  welcomePosterUrl  String?
+  personalizedMessage String?
+  
+  user  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks OnboardingTaskProgress[]
+
+  @@map("member_onboarding")
+}
+
+// Predefined onboarding tasks template
+model OnboardingTask {
+  id               String   @id @default(cuid())
+  title            String
+  description      String
+  type             TaskType
+  order            Int      // Sequence order
+  required         Boolean  @default(true)
+  estimatedMinutes Int      @default(15)
+  createdAt        DateTime @default(now())
+
+  // Relationships
+  taskProgress OnboardingTaskProgress[]
+
+  @@map("onboarding_tasks")
+}
+
+enum TaskType {
+  WELCOME_PACKET
+  PASTOR_MEETING
+  GROUP_ASSIGNMENT
+  VOLUNTEER_SURVEY
+  CHURCH_TOUR
+  SMALL_GROUP
+}
+
+// Tracks individual task completion for each member
+model OnboardingTaskProgress {
+  id           String     @id @default(cuid())
+  onboardingId String
+  taskId       String
+  status       TaskStatus @default(PENDING)
+  completedAt  DateTime?
+  notes        String?
+
+  onboarding MemberOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+  task       OnboardingTask    @relation(fields: [taskId], references: [id])
+
+  @@unique([onboardingId, taskId])
+  @@map("onboarding_task_progress")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+// Attendance tracking for events
+model AttendanceRecord {
+  id         String   @id @default(cuid())
+  eventId    String
+  userId     String
+  attendedAt DateTime @default(now())
+  checkedIn  Boolean  @default(true)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId]) // One attendance record per user per event
+  @@map("attendance_records")
+}
+
+// AI Agent tracking - monitors AI service status
+model AIAgent {
+  id           String      @id @default(cuid())
+  name         String
+  type         AgentType
+  status       AgentStatus @default(IDLE)
+  lastActive   DateTime    @default(now())
+  capabilities String[]    // JSON array of capabilities
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  tasks AgentTask[]
+
+  @@map("ai_agents")
+}
+
+enum AgentType {
+  CALENDAR
+  DESIGN
+  ONBOARDING
+  INSIGHTS
+}
+
+enum AgentStatus {
+  ACTIVE
+  IDLE
+  PROCESSING
+  ERROR
+  OFFLINE
+}
+
+// AI task tracking
+model AgentTask {
+  id          String     @id @default(cuid())
+  agentId     String
+  type        String
+  description String
+  status      TaskStatus @default(PENDING)
+  result      String?    // JSON result data
+  createdAt   DateTime   @default(now())
+  completedAt DateTime?
+
+  agent AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_tasks")
+}
+
+// Notification system
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean          @default(false)
+  actionUrl String?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  EVENT_REMINDER
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  AI_CONTENT_READY
+  SYSTEM_UPDATE
+  WELCOME
+}
