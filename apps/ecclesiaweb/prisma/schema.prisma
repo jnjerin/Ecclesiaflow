@@ -1,6 +1,5 @@
 // Prisma Schema for Ecclesiaflow
 // This defines our database structure using Prisma ORM
-// Prisma generates type-safe database client automatically
 
 generator client {
   provider = "prisma-client-js"
